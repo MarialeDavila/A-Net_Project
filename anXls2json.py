@@ -1,82 +1,102 @@
-'''
+"""
 Code to change tree information
 from xls file to json
-'''
+"""
+# Functions.
 
-import xlrd
-import numpy as np
 
-# Functions
-def column2list(data_column):
-    data_list = []
-    # Loop transforming unicode into ascii characters.
-    for item in data_column:    
-        value = item.value
-        value_str = value.encode('ascii','ignore')
-        data_list.append(value_str)
-    return data_list
+# Add nodes and children to tree structure for other categories.
+def add_node_to_structure(results_tmp, bias, all_new_nodes,
+                          all_parent_categories, parents):
+    counter = len(results_tmp)
+    list_new_nodes = []
+    for idx in range(0, len(all_new_nodes)):
+        new_node = all_new_nodes[idx]
+        idx_new_node = all_new_nodes.index(new_node)
+        if idx_new_node < idx:
+            continue
+        else:
+            list_new_nodes.append(new_node)
+
+        parent_name = all_parent_categories[idx]
+        parent_id = parents.index(parent_name)
+
+        node = results_tmp[counter] = {}
+        node['name'] = new_node
+        # add number of previous node.
+        parent_id = parent_id+bias
+        node_parent = results_tmp[parent_id]
+        if 'children' in node_parent:
+            node_parent['children'].append(node)
+        else:
+            node_parent['children'] = [node]
+        counter += 1
+    return (results_tmp, list_new_nodes)
 
 # Get data to xls file.
-book = xlrd.open_workbook("Activity Net.xls")
+import xlrd
+book = xlrd.open_workbook("../Activity Net.xls")
 anet_sheet = book.sheet_by_name('newNodes')
 number_activities = anet_sheet.nrows
 
 # Find major categories in sheet.
 major_categories = anet_sheet.col_slice(3, 1, 'none')
-
 # Change data type to get a list of string.
-all_major_categories = column2list(major_categories)
-all_major_categories2 = [x.value.encode('ascii', 'ignore') for x in major_categories]
-
-# Removing repeated categories.
-majors = list(set(all_major_categories))
-
-# Create node Id to major categories.
-node_id = range(1, len(majors)+1)
-
+all_major_categories = [x.value.encode('ascii', 'ignore')
+                        for x in major_categories]
 # Create structure in tree to major category.
 results = {}
 node_root = results[0] = {}
 node_root['name'] = 'root'
+majors = []   # List of major categories not repeated
+for index in range(0, len(all_major_categories)):
+    major_node_name = all_major_categories[index]
+    idx_major_node = all_major_categories.index(major_node_name)
+    if idx_major_node < index:
+        continue
 
-for idx in node_id:
-    node = results[idx] = {}
-    node['name'] = majors[idx]
+    majors.append(major_node_name)
+    major_node = results[index+1] = {}
+    major_node['name'] = major_node_name
     if 'children' in node_root:
-        node_root['children'].append(node)
+        node_root['children'].append(major_node)
     else:
-        node_root['children'] = [node]
+        node_root['children'] = [major_node]
 
 # Find second tier categories in sheet.
 second_tier_categories = anet_sheet.col_slice(2, 1, 'none')
+# Change data type to get a list of string.
+all_second_tier = [x.value.encode('ascii', 'ignore')
+                   for x in second_tier_categories]
+# Add nodes of second tier category.
+offset = 1   # previous node is only root
+results, second_tier = add_node_to_structure(results, offset, all_second_tier,
+                                             all_major_categories, majors)
 
-# Change data type to get a list of string
-all_second_tier = column2list(second_tier_categories)
+# Find third tier category in sheet.
+third_tier_categories = anet_sheet.col_slice(1, 1, 'none')
+# Change data type to get a list of string.
+all_third_tier = [x.value.encode('ascii', 'ignore')
+                  for x in third_tier_categories]
+# Add nodes of third categories.
+offset += len(majors)
+results, third_tier = add_node_to_structure(results, offset, all_third_tier,
+                                            all_second_tier, second_tier)
 
-# Removing repeated categories.
-second_tier = list(set(all_second_tier))
-
-# Add nodes and children to tree structure for other categories.
-counter = len(results)
-for idx in range(1, len(all_second_tier)):
-    new_node = all_second_tier[idx]    
-
-    idx_new_node = all_second_tier.index(new_node)
-    if idx_new_node < idx:
-        continue
-    parent_name = all_major_categories[idx]
-    parent_id = majors.index(parent_name)
-    
-    node = results[counter] = {}
-    node['name'] = new_node
-    node_parent = results[parent_id+1] # add 1 because node 0 is root
-    if 'children' in node_parent:
-        node_parent['children'].append(node)
-    else:
-        node_parent['children'] = [node]
-    counter += 1
-
-
-# myarray = np.column_stack((col0, col1, col2, col3))
-
-# out=json.dump(anetData,ensure_ascii=false)
+# Find activity names list in sheet.
+activity_name_categories = anet_sheet.col_slice(0, 1, 'none')
+# Change data type to get a list of string.
+all_activity_name = [x.value.encode('ascii', 'ignore')
+                     for x in activity_name_categories]
+# Add nodes of third categories.
+offset += len(second_tier)
+results, activity_name = add_node_to_structure(results, offset,
+                                               all_activity_name,
+                                               all_third_tier, third_tier)
+# Save structure in json file.
+anetData = results[0]
+import json
+q = json.dumps(anetData, ensure_ascii=False)
+with open('new_nodes.json', 'w') as outfile:
+    outfile.write(unicode(q))
+print q
