@@ -42,7 +42,10 @@ major_categories = anet_sheet.col_slice(3, 1, 'none')
 all_major_categories = [x.value.encode('ascii', 'ignore')
                         for x in major_categories]
 # Removing repeated categories
-majors = list(set(all_major_categories))
+majors = []
+for i in all_major_categories:
+    if i not in majors:
+        majors.append(i)
 # Create structure in tree to major category.
 results = {}
 node_root = results[0] = {}
@@ -64,7 +67,10 @@ second_tier_categories = anet_sheet.col_slice(2, 1, 'none')
 all_second_tier = [x.value.encode('ascii', 'ignore')
                    for x in second_tier_categories]
 # Removing repeated categories
-second_tier = list(set(all_second_tier))
+second_tier = []
+for i in all_second_tier:
+    if i not in second_tier:
+        second_tier.append(i)
 # Add nodes of second tier category.
 offset = 1   # previous node is only root
 results = add_node_to_structure(results, offset, all_second_tier,
@@ -75,8 +81,11 @@ third_tier_categories = anet_sheet.col_slice(1, 1, 'none')
 # Change data type to get a list of string.
 all_third_tier = [x.value.encode('ascii', 'ignore')
                   for x in third_tier_categories]
-# Removing repeated categories
-third_tier = list(set(all_third_tier))
+# Removing repeated categories.
+third_tier = []
+for i in all_third_tier:
+    if i not in third_tier:
+        third_tier.append(i)
 # Add nodes of third categories.
 offset += len(majors)
 results = add_node_to_structure(results, offset, all_third_tier,
